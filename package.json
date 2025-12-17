@@ -3,6 +3,7 @@
   "version": "1.1.1",
   "description": "Global Node.js proxy enforcer with directory whitelist",
   "type": "commonjs",
+  "license": "MIT",
   "bin": {
     "node-proxy-enforcer": "./bin/cli.js"
   },
