@@ -58,6 +58,21 @@ async function configureProxies() {
   console.log("  HTTP :", httpProxy);
 }
 
+function printEnvSetupText() {
+  console.log("\nAdd the following line to your shell config:\n");
+  console.log(`export NODE_OPTIONS="--require=${PRELOAD_PATH}"`);
+  console.log("\nTypical files:");
+  console.log("  ~/.bashrc");
+  console.log("  ~/.zshrc");
+  console.log("  ~/.profile\n");
+  console.log("Example command to adjust your .bashrc:\n");
+  console.log(`echo 'export NODE_OPTIONS="--require=${PRELOAD_PATH}"' >> ~/.bashrc\n`);
+  console.log("After that, restart your terminal.\n");
+  console.log("[!]Consider that in some scenarios the Node you want proxied might not");
+  console.log("inherit environmental variables from your shell. In those cases");
+  console.log("you need to learn the supported way for vars provision and use it.");
+}
+
 program
   .name("node-proxy-enforcer")
   .description("Global Node.js proxy enforcer with directory whitelist");
@@ -67,18 +82,7 @@ program
   .description("Configure proxies and guide NODE_OPTIONS setup")
   .action(async () => {
     await configureProxies();
-
-    const line = `export NODE_OPTIONS="--require=${PRELOAD_PATH}"`;
-
-    console.log("\nAdd the following line to your shell config:\n");
-    console.log(line);
-    console.log("\nTypical files:");
-    console.log("  ~/.bashrc");
-    console.log("  ~/.zshrc");
-    console.log("  ~/.profile\n");
-    console.log("Example command to adjust your .bashrc:\n");
-    console.log(`echo 'export NODE_OPTIONS="--require=${PRELOAD_PATH}"' >> ~/.bashrc\n`);
-    console.log("After that, restart your terminal.");
+    printEnvSetupText();
   });
 
 program
@@ -159,6 +163,10 @@ program
   .command("help")
   .description("Show help")
   .action(() => {
+    console.log("\n1.");
+    console.log("\nEither run `setup` command or `config-proxy`.");
+    console.log("\n2.");
+    printEnvSetupText();
     program.help();
   });
 
