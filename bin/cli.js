@@ -6,22 +6,46 @@ const fs = require("fs");
 const os = require("os");
 const { CONFIG_PATH, loadConfig, saveConfig } = require("../lib/config");
 const { ask } = require("../lib/prompt");
+const { isValidProxyUrl } = require("../lib/validate");
 
 const PRELOAD_PATH = path.resolve(__dirname, "../lib/preload.js");
 
-async function configureProxies() {
-  const httpsProxy = await ask("Enter HTTPS proxy address: ");
+async function askForValidProxy(label) {
+  while (true) {
+    const value = await ask(label);
+    if (isValidProxyUrl(value)) return value;
 
-  if (!httpsProxy) {
-    console.error("HTTPS proxy is required.");
-    process.exit(1);
+    console.log(
+      "Invalid proxy format. Expected e.g. http://proxy.company.com:8080"
+    );
   }
+}
 
-  const httpProxyInput = await ask(
-    "Enter HTTP proxy address (leave empty to use HTTPS proxy): "
+async function configureProxies() {
+  const httpsProxy = await askForValidProxy(
+    "Enter HTTPS proxy address: "
   );
 
-  const httpProxy = httpProxyInput || httpsProxy;
+  let httpProxy;
+  while (true) {
+    const input = await ask(
+      "Enter HTTP proxy address (leave empty to use HTTPS proxy): "
+    );
+
+    if (!input) {
+      httpProxy = httpsProxy;
+      break;
+    }
+
+    if (isValidProxyUrl(input)) {
+      httpProxy = input;
+      break;
+    }
+
+    console.log(
+      "Invalid proxy format. Expected e.g. http://proxy.company.com:8080"
+    );
+  }
 
   const config = loadConfig();
   config.httpsProxy = httpsProxy;
@@ -109,6 +133,26 @@ program
   .description("Print config file location")
   .action(() => {
     console.log(CONFIG_PATH);
+  });
+
+program
+  .command("disable")
+  .description("Disable proxy enforcement globally")
+  .action(() => {
+    const config = loadConfig();
+    config.disabled = true;
+    saveConfig(config);
+    console.log("Node proxy enforcer is now DISABLED.");
+  });
+
+program
+  .command("enable")
+  .description("Enable proxy enforcement globally")
+  .action(() => {
+    const config = loadConfig();
+    config.disabled = false;
+    saveConfig(config);
+    console.log("Node proxy enforcer is now ENABLED.");
   });
 
 program
