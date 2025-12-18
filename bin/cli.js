@@ -71,6 +71,19 @@ function whitelistDir(dir) {
   }
 }
 
+function blacklistDir(dir) {
+  const config = loadConfig();
+  const resolved = path.resolve(dir);
+
+  if (!config.blacklist.includes(resolved)) {
+    config.blacklist.push(resolved);
+    saveConfig(config);
+    console.log("Added:", resolved);
+  } else {
+    console.log("Already blacklisted.");
+  }
+}
+
 function getEnvSetupText() {
   return [
     "Add the following line to your shell config:",
@@ -141,6 +154,25 @@ program
   });
 
 program
+  .command("add-blacklist <dir>")
+  .description("Add blacklisted directory")
+  .action((dir) => {
+    blacklistDir(dir);
+  });
+
+program
+  .command("remove-blacklist <dir>")
+  .description("Remove blacklisted directory")
+  .action((dir) => {
+    const config = loadConfig();
+    const resolved = path.resolve(dir);
+
+    config.whitelist = config.whitelist.filter(d => d !== resolved);
+    saveConfig(config);
+    console.log("Removed:", resolved);
+  });
+
+program
   .command("list")
   .description("List whitelisted directories")
   .action(() => {
@@ -160,6 +192,16 @@ program
   });
 
 program
+  .command("enable")
+  .description("Enable proxy enforcement globally (default state)")
+  .action(() => {
+    const config = loadConfig();
+    config.disabled = false;
+    saveConfig(config);
+    console.log("Node proxy enforcer is now ENABLED.");
+  });
+
+program
   .command("disable")
   .description("Disable proxy enforcement globally")
   .action(() => {
@@ -167,16 +209,6 @@ program
     config.disabled = true;
     saveConfig(config);
     console.log("Node proxy enforcer is now DISABLED.");
-  });
-
-program
-  .command("enable")
-  .description("Enable proxy enforcement globally")
-  .action(() => {
-    const config = loadConfig();
-    config.disabled = false;
-    saveConfig(config);
-    console.log("Node proxy enforcer is now ENABLED.");
   });
 
 program.addHelpText("before", [
