@@ -58,19 +58,40 @@ async function configureProxies() {
   console.log("  HTTP :", httpProxy);
 }
 
-function printEnvSetupText() {
-  console.log("\nAdd the following line to your shell config:\n");
-  console.log(`export NODE_OPTIONS="--require=${PRELOAD_PATH}"`);
-  console.log("\nTypical files:");
-  console.log("  ~/.bashrc");
-  console.log("  ~/.zshrc");
-  console.log("  ~/.profile\n");
-  console.log("Example command to adjust your .bashrc:\n");
-  console.log(`echo 'export NODE_OPTIONS="--require=${PRELOAD_PATH}"' >> ~/.bashrc\n`);
-  console.log("After that, restart your terminal.\n");
-  console.log("[!]Consider that in some scenarios the Node you want proxied might not");
-  console.log("inherit environmental variables from your shell. In those cases");
-  console.log("you need to learn the supported way for vars provision and use it.");
+function whitelistDir(dir) {
+  const config = loadConfig();
+  const resolved = path.resolve(dir);
+
+  if (!config.whitelist.includes(resolved)) {
+    config.whitelist.push(resolved);
+    saveConfig(config);
+    console.log("Added:", resolved);
+  } else {
+    console.log("Already whitelisted.");
+  }
+}
+
+function getEnvSetupText() {
+  return [
+    "Add the following line to your shell config:",
+    `\nexport NODE_OPTIONS="--require=${PRELOAD_PATH}"`,
+    "\nTypical files:",
+    "  ~/.bashrc",
+    "  ~/.zshrc",
+    "  ~/.profile\n",
+    "Example command to adjust your .bashrc:",
+    `\necho 'export NODE_OPTIONS="--require=${PRELOAD_PATH}"' >> ~/.bashrc`,
+    "\nAfter that, restart your terminal.",
+    "\n[!]Consider that in some scenarios the Node you want proxied might not",
+    "inherit environmental variables from your shell. In those cases",
+    "you need to learn the supported way for vars provision and use it.",
+  ].join('\n');
+}
+
+function getDirectorySetupText() {
+  return [
+    `Use 'add <dir>' command to whitelist locations allowed for the enforcer to run in.`,
+  ].join('\n');
 }
 
 program
@@ -82,7 +103,15 @@ program
   .description("Configure proxies and guide NODE_OPTIONS setup")
   .action(async () => {
     await configureProxies();
-    printEnvSetupText();
+
+    const currentDirectory = process.cwd();
+
+    const initialDir = await ask(
+      `\nEnter directory to allow (leave empty for current: ${currentDirectory})`
+    );
+    whitelistDir(initialDir ?? currentDirectory);
+
+    console.log("\n" + getEnvSetupText());
   });
 
 program
@@ -96,16 +125,7 @@ program
   .command("add <dir>")
   .description("Add whitelisted directory")
   .action((dir) => {
-    const config = loadConfig();
-    const resolved = path.resolve(dir);
-
-    if (!config.whitelist.includes(resolved)) {
-      config.whitelist.push(resolved);
-      saveConfig(config);
-      console.log("Added:", resolved);
-    } else {
-      console.log("Already whitelisted.");
-    }
+    whitelistDir(dir);
   });
 
 program
@@ -159,14 +179,19 @@ program
     console.log("Node proxy enforcer is now ENABLED.");
   });
 
+program.addHelpText("before", [
+  "\n1. Either run `setup` command or `config-proxy`.\n",
+  "\n2. ",
+  getEnvSetupText(),
+  "\n",
+  "\n3. " + getDirectorySetupText(),
+  "\n",
+].join(''))
+
 program
   .command("help")
   .description("Show help")
   .action(() => {
-    console.log("\n1.");
-    console.log("\nEither run `setup` command or `config-proxy`.");
-    console.log("\n2.");
-    printEnvSetupText();
     program.help();
   });
 
