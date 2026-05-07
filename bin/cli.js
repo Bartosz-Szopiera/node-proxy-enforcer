@@ -6,7 +6,7 @@ const fs = require("fs");
 const os = require("os");
 const { CONFIG_PATH, loadConfig, saveConfig } = require("../lib/config");
 const { ask } = require("../lib/prompt");
-const { isValidProxyUrl } = require("../lib/validate");
+const { isValidProxyUrl, isValidPacUrl } = require("../lib/validate");
 
 const PRELOAD_PATH = path.resolve(__dirname, "../lib/preload.js");
 
@@ -21,7 +21,44 @@ async function askForValidProxy(label) {
   }
 }
 
+async function askForValidPacUrl(label) {
+  while (true) {
+    const value = await ask(label);
+    if (isValidPacUrl(value)) return value;
+
+    console.log(
+      "Invalid PAC URL format. Expected e.g. https://proxy.company.com/proxy.pac or file:///path/to/proxy.pac"
+    );
+  }
+}
+
+async function askYesNo(question) {
+  while (true) {
+    const answer = (await ask(question)).toLowerCase();
+    if (answer === "y" || answer === "yes") return true;
+    if (answer === "n" || answer === "no") return false;
+    console.log("Please answer with y/yes or n/no.");
+  }
+}
+
 async function configureProxies() {
+  const usePacProxyAgent = await askYesNo(
+    "Use PAC-based proxy agent? (y/N): "
+  );
+  const config = loadConfig();
+
+  if (usePacProxyAgent) {
+    const pacUrl = await askForValidPacUrl("Enter PAC URL: ");
+    config.usePacProxyAgent = true;
+    config.pacUrl = pacUrl;
+    saveConfig(config);
+
+    console.log("\nPAC proxy configuration saved:");
+    console.log("  PAC mode:", "enabled");
+    console.log("  PAC URL :", pacUrl);
+    return;
+  }
+
   const httpsProxy = await askForValidProxy(
     "Enter HTTPS proxy address: "
   );
@@ -47,7 +84,7 @@ async function configureProxies() {
     );
   }
 
-  const config = loadConfig();
+  config.usePacProxyAgent = false;
   config.httpsProxy = httpsProxy;
   config.httpProxy = httpProxy;
 
@@ -132,6 +169,55 @@ program
   .description("Reconfigure HTTP/HTTPS proxy addresses")
   .action(async () => {
     await configureProxies();
+  });
+
+program
+  .command("use-pac")
+  .description("Enable or disable PAC-based proxy mode")
+  .action(async () => {
+    const config = loadConfig();
+    const shouldEnable = await askYesNo("Enable PAC mode? (y/N): ");
+
+    if (shouldEnable) {
+      config.usePacProxyAgent = true;
+
+      if (!config.pacUrl) {
+        config.pacUrl = await askForValidPacUrl("Enter PAC URL: ");
+      } else {
+        console.log("PAC URL already set and will be used:", config.pacUrl);
+      }
+    } else {
+      config.usePacProxyAgent = false;
+    }
+
+    saveConfig(config);
+    console.log(
+      "PAC mode is now",
+      config.usePacProxyAgent ? "ENABLED." : "DISABLED."
+    );
+  });
+
+program
+  .command("set-pac-url <pacUrl>")
+  .description("Set PAC URL used when PAC mode is enabled")
+  .action((pacUrl) => {
+    if (!isValidPacUrl(pacUrl)) {
+      console.log(
+        "Invalid PAC URL format. Expected e.g. https://proxy.company.com/proxy.pac or file:///path/to/proxy.pac"
+      );
+      process.exitCode = 1;
+      return;
+    }
+
+    const config = loadConfig();
+    config.pacUrl = pacUrl;
+    saveConfig(config);
+
+    console.log("PAC URL saved:", config.pacUrl);
+    console.log(
+      "PAC mode is currently",
+      config.usePacProxyAgent ? "ENABLED." : "DISABLED."
+    );
   });
 
 program
